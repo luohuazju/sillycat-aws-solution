@@ -1,0 +1,18 @@
+service: lambda-s3-rekognition
+
+provider:
+  name: aws
+  runtime: java8
+  
+package:
+  artifact: target/lambda-s3-rekognition-1.0.jar
+
+functions:
+  check-video:
+    handler: com.aws.lambda.handler.S3EventHandler
+    events:
+      - s3:
+          bucket: rekoginition-videos
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .mp4

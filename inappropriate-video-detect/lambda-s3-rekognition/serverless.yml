@@ -9,6 +9,7 @@ provider:
         - rekognition:*
         - s3:*
         - sns:*
+        - iam:*
       Resource: "*"
   
 package:
@@ -20,8 +21,10 @@ custom:
 functions:
   check-video:
     handler: com.aws.lambda.handler.S3EventHandler
+    timeout: 600
     environment:
-      rekognitionSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:us-east-1:", { "Ref" : "AWS::AccountId" }, ":rekognition-videos" ]]}
+      rekognitionSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:us-east-1:", { "Ref" : "AWS::AccountId" }, ":AmazonRekognitionTopic1" ]]}
+      roleArn: { "Fn::Join" : ["", ["arn:aws:iam::", { "Ref" : "AWS::AccountId" }, ":role/RekognitionLambda" ]]}
     events:
       - s3:
           bucket: 'rekognition-videos-bucket'
@@ -32,5 +35,5 @@ functions:
     handler: com.aws.lambda.handler.SNSEventHandler
     events:
       - sns:
-          topicName: rekognition-videos
+          topicName: AmazonRekognitionTopic1
     

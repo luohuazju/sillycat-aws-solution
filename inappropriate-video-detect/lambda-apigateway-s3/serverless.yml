@@ -1,4 +1,4 @@
-service: lambda-s3-rekognition
+service: lambda-apigateway-s3
 
 provider:
   name: aws
@@ -6,35 +6,21 @@ provider:
   iamRoleStatements:
     - Effect: Allow
       Action:
-        - rekognition:*
         - s3:*
-        - sns:*
-        - iam:*
       Resource: "*"
   
 package:
-  artifact: target/lambda-s3-rekognition-1.0.jar
+  artifact: target/lambda-apigateway-s3-1.0.jar
   
 custom:
   stage: ${opt:stage}
 
 functions:
-  check-video:
-    handler: com.aws.lambda.handler.S3EventHandler
-    timeout: 60
-    environment:
-      rekognitionSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:us-east-1:", { "Ref" : "AWS::AccountId" }, ":AmazonRekognitionTopic1" ]]}
-      roleArn: { "Fn::Join" : ["", ["arn:aws:iam::", { "Ref" : "AWS::AccountId" }, ":role/RekognitionLambda" ]]}
+  upload-video:
+    handler: com.aws.lambda.handler.FileUploadHandler
+    timeout: 30
     events:
-      - s3:
-          bucket: 'rekognition-videos-bucket'
-          event: s3:ObjectCreated:*
-          rules:
-            - suffix: .mp4
-  fetch-rekognition:
-    handler: com.aws.lambda.handler.SNSEventHandler
-    timeout: 60
-    events:
-      - sns:
-          topicName: AmazonRekognitionTopic1
+      - http:
+          path: videos
+          method: POST
     

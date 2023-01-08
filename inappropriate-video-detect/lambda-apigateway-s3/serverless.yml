@@ -3,6 +3,9 @@ service: lambda-apigateway-s3
 provider:
   name: aws
   runtime: java8
+  apiGateway:
+    binaryMediaTypes:
+      - 'multipart/form-data'
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -23,4 +26,6 @@ functions:
       - http:
           path: videos
           method: POST
+          cors: true     
+
     

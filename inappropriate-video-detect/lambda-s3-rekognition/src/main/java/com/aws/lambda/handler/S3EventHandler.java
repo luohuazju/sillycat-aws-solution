@@ -8,6 +8,8 @@ import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotificatio
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import software.amazon.awssdk.services.rekognition.RekognitionClient;
+
 public class S3EventHandler implements RequestHandler<S3Event, String> {
 	
 	private Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -24,6 +26,9 @@ public class S3EventHandler implements RequestHandler<S3Event, String> {
 			// Source File Name
 			String srcFileName = record.getS3().getObject().getKey(); 
 			logger.log("fileName:" + srcFileName);
+			
+			RekognitionClient rekClient = RekognitionClient.builder().build();
+			
 
 		} catch (Exception e) {
 			throw new RuntimeException(e);

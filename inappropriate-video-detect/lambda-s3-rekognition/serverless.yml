@@ -3,16 +3,34 @@ service: lambda-s3-rekognition
 provider:
   name: aws
   runtime: java8
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - rekognition:*
+        - s3:*
+        - sns:*
+      Resource: "*"
   
 package:
   artifact: target/lambda-s3-rekognition-1.0.jar
+  
+custom:
+  stage: ${opt:stage}
 
 functions:
   check-video:
     handler: com.aws.lambda.handler.S3EventHandler
+    environment:
+      rekognitionSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:us-east-1:", { "Ref" : "AWS::AccountId" }, ":rekognition-videos" ]]}
     events:
       - s3:
-          bucket: rekoginition-videos
+          bucket: 'rekognition-videos-bucket'
           event: s3:ObjectCreated:*
           rules:
             - suffix: .mp4
+  fetch-rekognition:
+    handler: com.aws.lambda.handler.SNSEventHandler
+    events:
+      - sns:
+          topicName: rekognition-videos
+    

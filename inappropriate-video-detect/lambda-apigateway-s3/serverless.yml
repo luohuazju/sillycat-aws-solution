@@ -1,8 +1,10 @@
 service: lambda-apigateway-s3
-
+  
 provider:
   name: aws
   runtime: java8
+  stage: ${opt:stage, 'stage'}
+  region: ${opt:region, 'us-east-1'}
   apiGateway:
     binaryMediaTypes:
       - 'multipart/form-data'
@@ -11,12 +13,25 @@ provider:
       Action:
         - s3:*
       Resource: "*"
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["VideosDynamoDBTable", "Arn" ] }
+  environment:
+    VIDEOS_TABLE_NAME: ${self:custom.videosTableName}
   
 package:
   artifact: target/lambda-apigateway-s3-1.0.jar
   
 custom:
   stage: ${opt:stage}
+  videosTableName: 'rekognition-videos-${self:provider.stage}'
 
 functions:
   upload-video:
@@ -26,6 +41,22 @@ functions:
       - http:
           path: videos
           method: POST
-          cors: true     
+          cors: true  
+          
+resources:
+  Resources:
+    VideosDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.videosTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1   
 
     

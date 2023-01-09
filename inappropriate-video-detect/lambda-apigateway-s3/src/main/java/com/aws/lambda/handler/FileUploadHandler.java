@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,10 +20,9 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.aws.lambda.dao.Video;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
@@ -45,6 +46,7 @@ public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, 
 		String bucketName = "rekognition-videos-bucket";
 		String fileObjKeyName = "video_sample.mp4";
 		String fileObjHashName = "default.mp4";
+		String fileObjHash = "default";
 
 		APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
 
@@ -100,8 +102,8 @@ public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, 
 					if (index > 0 && secondIndex > 0) {
 						fileObjKeyName = header.substring(index + 10, secondIndex);
 						logger.log("5.2 fileObjKeyName:" + fileObjKeyName);
-
-						fileObjHashName = generateNameOnContent(fileObjKeyName) + ".mp4";
+						fileObjHash = generateNameOnContent(fileObjKeyName);
+						fileObjHashName = fileObjHash + ".mp4";
 						logger.log("5.3 fileObjHashName:" + fileObjHashName);
 					}
 				}
@@ -134,7 +136,12 @@ public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, 
 			s3Client.putObject(bucketName, fileObjHashName, fis, metadata);
 
 			// Log status
-			logger.log("8 Put object in S3");
+			logger.log("8 Put object in S3 done");
+
+			logger.log("meta information to dynamodb");
+			Video item = new Video();
+			item.setId(fileObjHash);
+			item.save(item);
 
 			response.setIsBase64Encoded(false);
 			response.setStatusCode(200);
@@ -142,7 +149,7 @@ public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, 
 			headers.put("X-Powered-By", "AWS Lambda & Serverless");
 			headers.put("Content-Type", "application/json");
 			response.setHeaders(headers);
-			response.setBody(gson.toJson("OK"));
+			response.setBody(gson.toJson(item.getId()));
 
 		} catch (Exception e) {
 			logger.log("Exception: " + e.getMessage());

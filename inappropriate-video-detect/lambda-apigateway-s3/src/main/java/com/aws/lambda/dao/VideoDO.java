@@ -21,7 +21,7 @@ public class VideoDO {
 	// get the table name from env. var. set in serverless.yml
 	private static final String VIDEOS_TABLE_NAME = System.getenv("VIDEOS_TABLE_NAME");
 
-	private static DynamoDBAdapter db_adapter;
+	private DynamoDBAdapter db_adapter;
 	private final AmazonDynamoDB client;
 	private final DynamoDBMapper mapper;
 

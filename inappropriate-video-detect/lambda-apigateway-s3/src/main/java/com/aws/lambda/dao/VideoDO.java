@@ -16,7 +16,7 @@ import com.amazonaws.services.dynamodbv2.datamodeling.PaginatedQueryList;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 
 @DynamoDBTable(tableName = "PLACEHOLDER_VIDEOS_TABLE_NAME")
-public class Video {
+public class VideoDO {
 
 	// get the table name from env. var. set in serverless.yml
 	private static final String VIDEOS_TABLE_NAME = System.getenv("VIDEOS_TABLE_NAME");
@@ -30,7 +30,7 @@ public class Video {
 	private String result;
 	private String detail;
 
-	public Video() {
+	public VideoDO() {
 		// build the mapper config
 		DynamoDBMapperConfig mapperConfig = DynamoDBMapperConfig.builder()
 				.withTableNameOverride(new DynamoDBMapperConfig.TableNameOverride(VIDEOS_TABLE_NAME)).build();
@@ -86,29 +86,29 @@ public class Video {
 		return this.client.describeTable(VIDEOS_TABLE_NAME).getTable().getTableStatus().equals("ACTIVE");
 	}
 
-	public List<Video> list() throws IOException {
+	public List<VideoDO> list() throws IOException {
 		DynamoDBScanExpression scanExp = new DynamoDBScanExpression();
-		List<Video> results = this.mapper.scan(Video.class, scanExp);
+		List<VideoDO> results = this.mapper.scan(VideoDO.class, scanExp);
 		return results;
 	}
 
-	public Video get(String id) throws IOException {
-		Video item = null;
+	public VideoDO get(String id) throws IOException {
+		VideoDO item = null;
 
 		HashMap<String, AttributeValue> av = new HashMap<String, AttributeValue>();
 		av.put(":v1", new AttributeValue().withS(id));
 
-		DynamoDBQueryExpression<Video> queryExp = new DynamoDBQueryExpression<Video>()
+		DynamoDBQueryExpression<VideoDO> queryExp = new DynamoDBQueryExpression<VideoDO>()
 				.withKeyConditionExpression("id = :v1").withExpressionAttributeValues(av);
 
-		PaginatedQueryList<Video> result = this.mapper.query(Video.class, queryExp);
+		PaginatedQueryList<VideoDO> result = this.mapper.query(VideoDO.class, queryExp);
 		if (result.size() > 0) {
 			item = result.get(0);
 		}
 		return item;
 	}
 
-	public void save(Video item) throws IOException {
+	public void save(VideoDO item) throws IOException {
 		this.mapper.save(item);
 	}
 

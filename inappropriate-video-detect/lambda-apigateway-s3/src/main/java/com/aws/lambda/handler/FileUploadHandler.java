@@ -20,7 +20,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.aws.lambda.dao.Video;
+import com.aws.lambda.dao.VideoDO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -139,7 +139,7 @@ public class FileUploadHandler implements RequestHandler<APIGatewayV2HTTPEvent, 
 			logger.log("8 Put object in S3 done");
 
 			logger.log("meta information to dynamodb");
-			Video item = new Video();
+			VideoDO item = new VideoDO();
 			item.setId(fileObjHash);
 			item.save(item);
 

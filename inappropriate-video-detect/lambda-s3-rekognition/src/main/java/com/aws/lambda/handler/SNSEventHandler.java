@@ -8,6 +8,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.SNSEvent;
 import com.amazonaws.services.lambda.runtime.events.SNSEvent.SNS;
 import com.amazonaws.services.lambda.runtime.events.SNSEvent.SNSRecord;
+import com.aws.lambda.dao.VideoDO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -16,7 +17,6 @@ import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.rekognition.model.ContentModerationDetection;
 import software.amazon.awssdk.services.rekognition.model.GetContentModerationRequest;
 import software.amazon.awssdk.services.rekognition.model.GetContentModerationResponse;
-import software.amazon.awssdk.services.rekognition.model.RekognitionException;
 import software.amazon.awssdk.services.rekognition.model.VideoMetadata;
 
 public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
@@ -39,6 +39,10 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
 		JsonObject result = gson.fromJson(message, JsonObject.class);
 		logger.log("JobId=" + result.get("JobId").getAsString());
 		logger.log("Status=" + result.get("Status").getAsString());
+		JsonObject videoObj = result.get("Video").getAsJsonObject();
+		String fileName = videoObj.get("S3ObjectName").getAsString();
+		String id = fileName.substring(0, fileName.length() - 4);
+		logger.log("id=" + id);
 		
 		logger.log("start to fetch-------------------------");
 		RekognitionClient rekClient = RekognitionClient.builder().build();
@@ -50,6 +54,7 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
             String status;
             int yy=0 ;
 
+            StringBuilder sb = new StringBuilder();
             do{
                 if (modDetectionResponse !=null) {
                     paginationToken = modDetectionResponse.nextToken();
@@ -90,14 +95,26 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
                     long seconds=mod.timestamp()/1000;
                     logger.log("Mod label: " + seconds + " ");
                     logger.log(mod.moderationLabel().toString());
+                    sb.append(mod.moderationLabel().toString());
                     logger.log("-------------------------");
                 }
 
             } while (modDetectionResponse !=null && modDetectionResponse.nextToken() != null);
             
+            VideoDO item = new VideoDO();
+            item.setId(id);
+            item.setJobID(startJobId);
+            item.setDetail(sb.toString());
+            if (sb.toString().isEmpty()) {
+            	item.setResult("KIDS");
+            } else {
+            	item.setResult("ALDULTS");
+            }
+            item.save(item);
+            
             rekClient.close();
 
-        } catch(RekognitionException | InterruptedException e) {
+        } catch(Exception e) {
         	logger.log(e.getMessage());
         }
 

@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.S3Event;
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.S3EventNotificationRecord;
+import com.aws.lambda.dao.VideoDO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -30,7 +31,9 @@ public class S3EventHandler implements RequestHandler<S3Event, String> {
 			S3EventNotificationRecord record = event.getRecords().get(0);
 			// Source File Name
 			String srcFileName = record.getS3().getObject().getKey();
-			logger.log("fileName:" + srcFileName);
+			logger.log("fileName: " + srcFileName);
+			String id = srcFileName.substring(0,srcFileName.length() - 4);
+			logger.log("id: " + id);
 			String snsArn = System.getenv("rekognitionSNSArn");
 			logger.log("SNSARN:" + snsArn);
 			String roleArn = System.getenv("roleArn");
@@ -57,6 +60,10 @@ public class S3EventHandler implements RequestHandler<S3Event, String> {
 			logger.log("7 get taskID");
 			logger.log("start to check the video in jobID=" + startJobId);
 			
+			VideoDO item = new VideoDO();
+			item.setId(id);
+			item.setJobID(startJobId);
+			item.save(item);
 			
 			rekClient.close();
 		} catch (Exception e) {

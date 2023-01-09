@@ -3,6 +3,7 @@ service: lambda-s3-rekognition
 provider:
   name: aws
   runtime: java8
+  stage: ${opt:stage, 'stage'}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -11,12 +12,25 @@ provider:
         - sns:*
         - iam:*
       Resource: "*"
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:DescribeTable
+      Resource: "*"
+  environment:
+    VIDEOS_TABLE_NAME: ${self:custom.videosTableName}
   
 package:
   artifact: target/lambda-s3-rekognition-1.0.jar
   
 custom:
   stage: ${opt:stage}
+  videosTableName: 'rekognition-videos-${self:provider.stage}'
 
 functions:
   check-video:

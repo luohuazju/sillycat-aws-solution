@@ -33,6 +33,7 @@ custom:
   stage: ${opt:stage}
   videosTableName: 'rekognition-videos-${self:provider.stage}'
 
+# define the HTTP input via APIGateway --> Lambda
 functions:
   upload-video:
     handler: com.aws.lambda.handler.FileUploadHandler
@@ -43,6 +44,7 @@ functions:
           method: POST
           cors: true  
           
+# Database Table Resources
 resources:
   Resources:
     VideosDynamoDBTable:

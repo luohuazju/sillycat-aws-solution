@@ -32,6 +32,7 @@ custom:
   stage: ${opt:stage}
   videosTableName: 'rekognition-videos-${self:provider.stage}'
 
+# all lambda functions are here, trigger by s3, SNS
 functions:
   check-video:
     handler: com.aws.lambda.handler.S3EventHandler

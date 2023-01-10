@@ -16,6 +16,11 @@ import software.amazon.awssdk.services.rekognition.model.StartContentModerationR
 import software.amazon.awssdk.services.rekognition.model.StartContentModerationResponse;
 import software.amazon.awssdk.services.rekognition.model.Video;
 
+/**
+ * s3 events trigger lambda to start rekognition tasks on video files
+ * @author Carl
+ *
+ */
 public class S3EventHandler implements RequestHandler<S3Event, String> {
 
 	private Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -24,47 +29,38 @@ public class S3EventHandler implements RequestHandler<S3Event, String> {
 	public String handleRequest(S3Event event, Context context) {
 		LambdaLogger logger = context.getLogger();
 
-		logger.log("event:" + event);
-		logger.log("event json: " + gson.toJson(event));
+		logger.log("step1 - receive s3 event the file created ---------");
+		logger.log("event json content: " + gson.toJson(event));
 		try {
 			// Get Event Record
 			S3EventNotificationRecord record = event.getRecords().get(0);
 			// Source File Name
 			String srcFileName = record.getS3().getObject().getKey();
-			logger.log("fileName: " + srcFileName);
+			logger.log("parse and get file name: " + srcFileName);
 			String id = srcFileName.substring(0,srcFileName.length() - 4);
-			logger.log("id: " + id);
+			logger.log("parse and get hash key: " + id);
 			String snsArn = System.getenv("rekognitionSNSArn");
-			logger.log("SNSARN:" + snsArn);
+			logger.log("SNS topic ARN:" + snsArn);
 			String roleArn = System.getenv("roleArn");
-			logger.log("roleArn:" + roleArn);
+			logger.log("SNS topic roleArn:" + roleArn);
 
 			RekognitionClient rekClient = RekognitionClient.builder().build();
-			logger.log("1 create rek client done");
 			NotificationChannel channel = NotificationChannel.builder().snsTopicArn(snsArn).roleArn(roleArn).build();
-			logger.log("2 create sns client done");
-
 			S3Object s3Obj = S3Object.builder().bucket("rekognition-videos-bucket").name(srcFileName).build();
-			logger.log("3 s3 resource done");
 			Video vidOb = Video.builder().s3Object(s3Obj).build();
-			logger.log("4 video ready to check");
-
 			StartContentModerationRequest modDetectionRequest = StartContentModerationRequest.builder()
 					.jobTag("Moderation").notificationChannel(channel).video(vidOb).build();
-			logger.log("5 build request");
-
 			StartContentModerationResponse startModDetectionResult = rekClient
 					.startContentModeration(modDetectionRequest);
-			logger.log("6 send out request");
+			logger.log("step2 - trigger rekognition to work on video-----");
 			String startJobId = startModDetectionResult.jobId();
-			logger.log("7 get taskID");
-			logger.log("start to check the video in jobID=" + startJobId);
+			logger.log("rekognition response job ID:" + startJobId);
 			
 			VideoDO item = new VideoDO();
 			item.setId(id);
 			item.setJobID(startJobId);
 			item.save(item);
-			
+			logger.log("step3 - update jobID in dynamoDB-----------------");
 			rekClient.close();
 		} catch (Exception e) {
 			logger.log("Exception:" + e.getMessage());

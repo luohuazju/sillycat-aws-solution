@@ -19,6 +19,11 @@ import software.amazon.awssdk.services.rekognition.model.GetContentModerationReq
 import software.amazon.awssdk.services.rekognition.model.GetContentModerationResponse;
 import software.amazon.awssdk.services.rekognition.model.VideoMetadata;
 
+/**
+ * SNS notify trigger lambda to fetch the results from rekognition
+ * @author Carl
+ *
+ */
 public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
 
 	private Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -26,25 +31,24 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
 	@Override
 	public String handleRequest(SNSEvent event, Context context) {
 		LambdaLogger logger = context.getLogger();
-
-		logger.log("event:" + event);
+		
+		logger.log("step1 - get the SNS event request ------------");
 		logger.log("event json: " + gson.toJson(event));
 
 		List<SNSRecord> records = event.getRecords();
 		SNSRecord record = records.get(0);
 		SNS sns = record.getSNS();
 		String message = sns.getMessage();
-		logger.log("message result:" + message);
+		logger.log("Message result:" + message);
 		
 		JsonObject result = gson.fromJson(message, JsonObject.class);
-		logger.log("JobId=" + result.get("JobId").getAsString());
-		logger.log("Status=" + result.get("Status").getAsString());
+		logger.log("parse get JobId: " + result.get("JobId").getAsString());
+		logger.log("parse get Status: " + result.get("Status").getAsString());
 		JsonObject videoObj = result.get("Video").getAsJsonObject();
 		String fileName = videoObj.get("S3ObjectName").getAsString();
 		String id = fileName.substring(0, fileName.length() - 4);
-		logger.log("id=" + id);
+		logger.log("parse get hash ID: " + id);
 		
-		logger.log("start to fetch-------------------------");
 		RekognitionClient rekClient = RekognitionClient.builder().build();
 		String startJobId = result.get("JobId").getAsString();
 		try {
@@ -59,7 +63,6 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
                 if (modDetectionResponse !=null) {
                     paginationToken = modDetectionResponse.nextToken();
                 }
-                logger.log("tring to fetch -----------");
                 GetContentModerationRequest modRequest = GetContentModerationRequest.builder()
                     .jobId(startJobId)
                     .nextToken(paginationToken)
@@ -84,11 +87,11 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
 
                 // Proceed when the job is done - otherwise VideoMetadata is null
                 VideoMetadata videoMetaData=modDetectionResponse.videoMetadata();
+                logger.log("step2 - get the video results from rekognition--------");
                 logger.log("Format: " + videoMetaData.format());
                 logger.log("Codec: " + videoMetaData.codec());
                 logger.log("Duration: " + videoMetaData.durationMillis());
                 logger.log("FrameRate: " + videoMetaData.frameRate());
-                logger.log("Job");
 
                 List<ContentModerationDetection> mods = modDetectionResponse.moderationLabels();
                 for (ContentModerationDetection mod: mods) {
@@ -111,13 +114,12 @@ public class SNSEventHandler implements RequestHandler<SNSEvent, String> {
             	item.setResult("ALDULTS");
             }
             item.save(item);
-            
+            logger.log("step3 - save the results to DynamoDB-------------");
+            logger.log("step4 - TODO invoke call back URL, notifications email, slack");
             rekClient.close();
-
         } catch(Exception e) {
         	logger.log(e.getMessage());
         }
-
 		return "OK";
 	}
 

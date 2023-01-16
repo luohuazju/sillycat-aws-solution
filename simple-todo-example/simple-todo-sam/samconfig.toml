@@ -1,0 +1,13 @@
+version = 0.1
+[stage]
+[stage.deploy]
+[stage.deploy.parameters]
+stack_name = "simple-todo-sam"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-pj6w6mzb8hy0"
+s3_prefix = "simple-todo-sam"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+parameter_overrides = "TableName=\"sam-todonts-table\" QueueName=\"sam-todonts-queue\""
+image_repositories = []

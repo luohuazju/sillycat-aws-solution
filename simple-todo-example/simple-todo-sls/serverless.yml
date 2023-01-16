@@ -1,16 +1,16 @@
-service: sls-todont
+service: simple-todo-sls
 
 plugins:
   - serverless-offline
 
 provider:
   name: aws
-  region: eu-north-1
-  runtime: nodejs14.x
-  environment: # Inject environment variables
+  region: us-east-1
+  runtime: nodejs18.x
+  environment:
     TABLE_NAME: ${self:custom.tableName}
     QUEUE_URL: !Ref todontsQueue
-  iamRoleStatements: # Configure IAM role statements
+  iamRoleStatements:
     - Effect: Allow
       Action: sqs:sendMessage
       Resource: ${self:custom.queueArn}
@@ -18,28 +18,27 @@ provider:
       Action: dynamodb:putItem
       Resource: ${self:custom.tableArn}
 
-custom: # Custom variables that we can reference elsewhere
+custom:
   tableName: ${self:service}-table
   queueName: ${self:service}-queue
-  tableArn: # Get ARN of table with CloudFormation helper
+  tableArn:
     Fn::GetAtt: [todontsTable, Arn]
-  queueArn: # Get ARN of queue with CloudFormation helper
+  queueArn:
     Fn::GetAtt: [todontsQueue, Arn]
 
-functions: # Define our two Lambda functions
+functions:
   post:
-    handler: src/post.handler
-    events: # Invoke on post requests to /todonts
+    handler: src/post-handler.handler
+    events:
       - http:
           method: post
           path: todonts
   process:
-    handler: src/process.handler
-    events: # Consume SQS queue
+    handler: src/process-handler.handler
+    events:
       - sqs:
           arn: ${self:custom.queueArn}
 
-# CloudFormation below to define our infrastructure resources
 resources: 
   Resources:
     todontsTable:

@@ -1,15 +1,16 @@
 {
-    "name": "delete-test-01",
-    "description": "delete-test-01-description",
+    "name": "simple-todo-sam",
+    "description": "simple demo about 2 lambda with 1 sqs",
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "@aws-sdk/client-dynamodb": "^3.188.0",
-        "@aws-sdk/lib-dynamodb": "^3.188.0"
+        "@aws-sdk/client-dynamodb": "^3.245.0",
+        "@aws-sdk/client-sqs": "^3.245.0",
+        "@aws-sdk/lib-dynamodb": "^3.245.0"
     },
     "devDependencies": {
-        "aws-sdk-client-mock": "^2.0.0",
-        "jest": "^29.2.1"
+        "aws-sdk-client-mock": "^2.0.1",
+        "jest": "^29.3.1"
     },
     "scripts": {
         "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js"

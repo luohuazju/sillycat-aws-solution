@@ -1,7 +1,5 @@
 package com.aws.javasdkexample.service;
 
-import java.util.Date;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,20 +8,14 @@ import org.springframework.util.Assert;
 
 @SpringBootTest
 @ActiveProfiles("dev")
-public class S3ServiceTest {
+public class HealthServiceTest {
 
 	@Autowired
-	S3Service s3Service;
+	HealthService healthService;
 
 	@Test
 	public void springBean() {
-		Assert.notNull(s3Service, "Spring Bean should be loadded!");
-	}
-
-	@Test
-	public void lastModified() {
-		Date date = s3Service.getFileLastUpdate("rekognition-videos-bucket", "f6003dedc86b32bf6260ecefcbec4d00.mp4");
-		Assert.notNull(date, "last date should be fetched!");
+		Assert.notNull(healthService, "Spring Bean should be loadded!");
 	}
 
 }

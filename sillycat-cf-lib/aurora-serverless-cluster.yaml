@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: This stack deploys an Aurora Serverless PostgreSQL cluster.
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name for the application (dev/staging/uat/production)
+    Type: String
+    Default: dev
+  NetworkStackName:
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+    Default: 30
+  DBMaster:
+    Type: String
+    Default: vectormaster
+  DatabaseName:
+    Type: String
+    Default: vector1
+  DBBackupRetentionPeriod:
+    Description: 'The number of days to keep snapshots of the cluster.'
+    Type: Number
+    MinValue: 1
+    MaxValue: 35
+    Default: 3
+  EnableDataApi:
+    Description: 'Enable the Data API.'
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+  AutoPause:
+    Description: 'Enable automatic pause for the cluster.'
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+  MaxCapacity:
+    Description: 'The maximum capacity units for the cluster.'
+    Type: String
+    AllowedValues: [2, 4, 8, 16, 32, 64, 192, 384]
+    Default: 4
+  MinCapacity:
+    Description: 'The minimum capacity units for the cluster.'
+    Type: String
+    AllowedValues: [2, 4, 8, 16, 32, 64, 192, 384]
+    Default: 2
+  SecondsUntilAutoPause:
+    Description: 'The time, in seconds, before the cluster is paused.'
+    Type: Number
+    MinValue: 1
+    MaxValue: 86400
+    Default: 300
+  EngineVersion:
+    Description: 'Aurora Serverless PostgreSQL version.'
+    Type: String
+    Default: '15.3'
+    AllowedValues: ['12.15', '13.11', '14.8', '15.3']
+
+Resources:
+  DBCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub ${EnvironmentName}-AuroraCluster
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DBMaster}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBMaster}:SecretString:password}}'
+      DatabaseName: !Ref DatabaseName
+      Engine: aurora-postgresql
+      EngineMode: serverless
+      EngineVersion: !Ref EngineVersion
+      EnableHttpEndpoint: !Ref EnableDataApi
+      ScalingConfiguration:
+        AutoPause: !Ref AutoPause
+        MaxCapacity: !Ref MaxCapacity
+        MinCapacity: !Ref MinCapacity
+        SecondsUntilAutoPause: !Ref SecondsUntilAutoPause
+      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
+      StorageEncrypted: true
+
+Outputs:
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  ClusterName:
+    Description: 'The name of the cluster.'
+    Value: !Ref DBCluster
+  DNSName:
+    Description: 'The connection endpoint for the DB cluster.'
+    Value: !GetAtt 'DBCluster.Endpoint.Address'
+  DBName:
+    Description: 'The name of the database.'
+    Value: !Ref DatabaseName
+  DBPort:
+    Description: 'The port of the database.'
+    Value: 5432

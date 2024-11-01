@@ -7,34 +7,12 @@ Parameters:
     Description: Environment name for the application (dev/staging/uat/production)
     Type: String
     Default: dev
-  NetworkStackName:
-    Type: String
-    MinLength: 1
-    MaxLength: 255
-    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
-    Default: 30
-  DBMaster:
+  DBMasterName:
     Type: String
     Default: vectormaster
   DatabaseName:
     Type: String
     Default: vector1
-  DBBackupRetentionPeriod:
-    Description: 'The number of days to keep snapshots of the cluster.'
-    Type: Number
-    MinValue: 1
-    MaxValue: 35
-    Default: 3
-  EnableDataApi:
-    Description: 'Enable the Data API.'
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'true'
-  AutoPause:
-    Description: 'Enable automatic pause for the cluster.'
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'true'
   MaxCapacity:
     Description: 'The maximum capacity units for the cluster.'
     Type: String
@@ -45,12 +23,6 @@ Parameters:
     Type: String
     AllowedValues: [2, 4, 8, 16, 32, 64, 192, 384]
     Default: 2
-  SecondsUntilAutoPause:
-    Description: 'The time, in seconds, before the cluster is paused.'
-    Type: Number
-    MinValue: 1
-    MaxValue: 86400
-    Default: 300
   EngineVersion:
     Description: 'Aurora Serverless PostgreSQL version.'
     Type: String
@@ -58,24 +30,46 @@ Parameters:
     AllowedValues: ['12.15', '13.11', '14.8', '15.3']
 
 Resources:
-  DBCluster:
-    Type: AWS::RDS::DBCluster
+  DBMasterPassword:
+    Type: 'AWS::SecretsManager::Secret'
     Properties:
-      DBClusterIdentifier: !Sub ${EnvironmentName}-AuroraCluster
-      MasterUsername: !Sub '{{resolve:secretsmanager:${DBMaster}:SecretString:username}}'
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBMaster}:SecretString:password}}'
-      DatabaseName: !Ref DatabaseName
+      Name: !Sub '/rds/${EnvironmentName}/${DatabaseName}-Password'
+      GenerateSecretString:
+        PasswordLength: 16
+        ExcludePunctuation: true
+
+  DBSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    DependsOn: DBMasterPassword  # Ensures the DBMasterPassword is created first
+    Properties:
+      Name: !Sub '/rds/${EnvironmentName}/${DatabaseName}-Credentials'
+      Description: 'Aurora database credentials with both username and password'
+      SecretString:
+        Fn::Sub:
+          - '{"username": "${DBMasterName}", "password": "${DBMasterPassword}"}'
+          - DBMasterName: !Ref DBMasterName
+            DBMasterPassword: !Ref DBMasterPassword
+
+  AuroraPostgreSQLServerlessV2Cluster:
+    Type: AWS::RDS::DBCluster
+    DependsOn: DBSecret  # Ensures the secret is created first
+    Properties:
       Engine: aurora-postgresql
-      EngineMode: serverless
       EngineVersion: !Ref EngineVersion
-      EnableHttpEndpoint: !Ref EnableDataApi
-      ScalingConfiguration:
-        AutoPause: !Ref AutoPause
-        MaxCapacity: !Ref MaxCapacity
+      DatabaseName: !Ref DatabaseName
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DBSecret}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBSecret}:SecretString:password}}'
+      EnableHttpEndpoint: True
+      ServerlessV2ScalingConfiguration:
         MinCapacity: !Ref MinCapacity
-        SecondsUntilAutoPause: !Ref SecondsUntilAutoPause
-      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
-      StorageEncrypted: true
+        MaxCapacity: !Ref MaxCapacity
+
+  AuroraPostgreSQLServerlessV2Instance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref AuroraPostgreSQLServerlessV2Cluster
+      DBInstanceClass: db.serverless
+      Engine: aurora-postgresql
 
 Outputs:
   StackName:
@@ -83,10 +77,10 @@ Outputs:
     Value: !Sub '${AWS::StackName}'
   ClusterName:
     Description: 'The name of the cluster.'
-    Value: !Ref DBCluster
+    Value: !Ref AuroraPostgreSQLServerlessV2Cluster
   DNSName:
     Description: 'The connection endpoint for the DB cluster.'
-    Value: !GetAtt 'DBCluster.Endpoint.Address'
+    Value: !GetAtt 'AuroraPostgreSQLServerlessV2Cluster.Endpoint.Address'
   DBName:
     Description: 'The name of the database.'
     Value: !Ref DatabaseName

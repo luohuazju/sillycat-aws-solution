@@ -33,7 +33,6 @@ Resources:
   DBMasterPassword:
     Type: 'AWS::SecretsManager::Secret'
     Properties:
-      Name: !Sub '/rds/${EnvironmentName}/${DatabaseName}-Password'
       GenerateSecretString:
         PasswordLength: 16
         ExcludePunctuation: true

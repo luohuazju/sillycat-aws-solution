@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create an S3 bucket, download a file from a URL, and upload it to the S3 bucket.
+
+Parameters:
+  BucketName:
+    Description: The name of the S3 bucket to create
+    Type: String
+    Default: my-s3-bucket
+    ConstraintDescription: Must be a valid S3 bucket name.
+
+  LambdaFunctionName:
+    Description: The name of the lambda function
+    Type: String
+    Default: stackname-download-upload
+  
+  FileURL:
+    Description: The URL of the file to download and upload to the S3 bucket
+    Type: String
+    Default: "https://people.sc.fsu.edu/~jburkardt/data/csv/airtravel.csv"
+
+  ObjectKey:
+    Description: The key for the uploaded object in the S3 bucket
+    Type: String
+    Default: "uploaded-file.csv"
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${BucketName}/*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Handler: index.handler
+      Runtime: python3.9
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          import boto3
+          from urllib.request import urlopen
+          import json
+          import urllib3
+
+          SUCCESS = "SUCCESS"
+          FAILED = "FAILED"
+
+          def send_response(event, context, response_status, response_data):
+              response_url = event['ResponseURL']
+              response_body = {
+                  "Status": response_status,
+                  "Reason": f"See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                  "PhysicalResourceId": context.log_stream_name,
+                  "StackId": event['StackId'],
+                  "RequestId": event['RequestId'],
+                  "LogicalResourceId": event['LogicalResourceId'],
+                  "Data": response_data,
+              }
+
+              json_response_body = json.dumps(response_body)
+              headers = {"content-type": "", "content-length": str(len(json_response_body))}
+              http = urllib3.PoolManager()
+              http.request("PUT", response_url, headers=headers, body=json_response_body)
+
+          def handler(event, context):
+              try:
+                  bucket_name = event['ResourceProperties']['BucketName']
+                  url = event['ResourceProperties']['Url']
+                  object_key = event['ResourceProperties'].get('ObjectKey', 'downloaded-file')
+
+                  # Download the file
+                  with urlopen(url) as response:
+                      file_content = response.read()
+
+                  # Upload to S3
+                  s3 = boto3.client('s3')
+                  s3.put_object(Bucket=bucket_name, Key=object_key, Body=file_content)
+
+                  # Send success response to CloudFormation
+                  send_response(event, context, SUCCESS, {
+                      "Message": f"File from {url} uploaded to {bucket_name}/{object_key}"
+                  })
+
+              except Exception as e:
+                  # Send failure response to CloudFormation
+                  send_response(event, context, FAILED, {"Error": str(e)})
+
+
+  CustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunction.Arn
+      BucketName: !Ref BucketName
+      Url: !Ref FileURL
+      ObjectKey: !Ref ObjectKey
+
+Outputs:
+  S3BucketName:
+    Description: The name of the S3 bucket created
+    Value: !Ref S3Bucket
+
+  LambdaFunctionName:
+    Description: The name of the Lambda function
+    Value: !Ref LambdaFunctionName
